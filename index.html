@@ -1,0 +1,1425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIGNAL — Steam Game Discovery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0c11;
+    --bg-panel:#12151d99;
+    --bg-panel-solid:#12151d;
+    --bg-card:#141824;
+    --bg-raised:#1b2030aa;
+    --border:#262c40;
+    --border-soft:#1d2233aa;
+    --text:#eceaf2;
+    --text-dim:#8e93ab;
+    --text-faint:#565c78;
+    --accent:#ffb020;
+    --accent-dim:#4a3712;
+    --accent-2:#33e0c4;
+    --accent-2-dim:#0f3a34;
+    --accent-3:#ff5f8f;
+    --accent-shadow:#a86b12;
+    --up:#5fd68a;
+    --up-dim:#1c3a2b;
+    --down:#ff5566;
+    --down-dim:#3d1f26;
+    --radius-sm:5px;
+    --radius-md:9px;
+    --gc:var(--accent);
+    --ease-bounce:cubic-bezier(.34,1.56,.64,1);
+    --ease-snap:cubic-bezier(.22,1,.36,1);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(ellipse 1000px 560px at 10% -12%, #2a2410 0%, transparent 58%),
+      radial-gradient(ellipse 760px 520px at 105% 0%, #0f2b28 0%, transparent 55%),
+      radial-gradient(ellipse 900px 700px at 50% 120%, #1a0f1e 0%, transparent 60%),
+      var(--bg);
+    color:var(--text);
+    font-family:'IBM Plex Sans', system-ui, sans-serif;
+    font-size:15px;
+    line-height:1.5;
+    min-height:100vh;
+    position:relative;
+  }
+  body::before{
+    content:'';
+    position:fixed; inset:0; pointer-events:none; z-index:0; opacity:0.035; mix-blend-mode:overlay;
+    background-image:repeating-linear-gradient(0deg, #fff 0px, transparent 1px, transparent 3px);
+  }
+  .wrap{ position:relative; z-index:1; }
+  ::selection{ background:var(--accent); color:#141414; }
+  a{ color:var(--accent-2); }
+  :focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  ::-webkit-scrollbar{ width:11px; height:11px; }
+  ::-webkit-scrollbar-track{ background:var(--bg); }
+  ::-webkit-scrollbar-thumb{ background:var(--border); border-radius:8px; border:2px solid var(--bg); }
+  ::-webkit-scrollbar-thumb:hover{ background:var(--text-faint); }
+
+  /* ---------- Juice: gelly squash-and-stretch spring feedback ---------- */
+  @keyframes btnPunch{
+    0%{ transform:scale(1,1); }
+    18%{ transform:scale(1.24,0.8); }
+    36%{ transform:scale(0.88,1.16); }
+    54%{ transform:scale(1.1,0.93); }
+    72%{ transform:scale(0.96,1.05); }
+    88%{ transform:scale(1.02,0.99); }
+    100%{ transform:scale(1,1); }
+  }
+  @keyframes chipBounce{
+    0%{ transform:scale(1,1) rotate(0) skewX(0); }
+    16%{ transform:scale(1.28,0.76) rotate(-4deg) skewX(-5deg); }
+    34%{ transform:scale(0.82,1.24) rotate(4deg) skewX(4deg); }
+    52%{ transform:scale(1.13,0.9) rotate(-2deg) skewX(-2deg); }
+    70%{ transform:scale(0.95,1.06) rotate(1deg) skewX(1deg); }
+    86%{ transform:scale(1.02,0.98) rotate(-0.3deg); }
+    100%{ transform:scale(1,1) rotate(0); }
+  }
+  @keyframes bumpScale{
+    0%{ transform:scale(1,1); }
+    18%{ transform:scale(1.32,0.74); }
+    38%{ transform:scale(0.84,1.22); }
+    58%{ transform:scale(1.12,0.92); }
+    76%{ transform:scale(0.96,1.05); }
+    90%{ transform:scale(1.02,0.99); }
+    100%{ transform:scale(1,1); }
+  }
+  @keyframes cardPunch{
+    0%{ transform:translateY(-6px) scale(1,1); }
+    18%{ transform:translateY(-16px) scale(1.1,0.88); }
+    38%{ transform:translateY(0px) scale(0.92,1.12); }
+    58%{ transform:translateY(-10px) scale(1.05,0.95); }
+    76%{ transform:translateY(-3px) scale(0.98,1.02); }
+    90%{ transform:translateY(-7px) scale(1.01,0.99); }
+    100%{ transform:translateY(-6px) scale(1,1); }
+  }
+  .btn-pop{ animation:btnPunch .42s var(--ease-bounce); }
+  .chip-pop{ animation:chipBounce .46s var(--ease-bounce); }
+  .bump{ animation:bumpScale .46s var(--ease-bounce); }
+  .card-pop{ animation:cardPunch .5s var(--ease-bounce); }
+
+  @keyframes floatUp{
+    0%{ transform:translate(-50%,4px) scale(.5,1.3); opacity:0; }
+    20%{ transform:translate(-50%,-9px) scale(1.3,0.75); opacity:1; }
+    40%{ transform:translate(-50%,-18px) scale(0.9,1.14); opacity:1; }
+    65%{ transform:translate(-50%,-32px) scale(1.06,0.97); opacity:1; }
+    100%{ transform:translate(-50%,-48px) scale(0.9,0.9); opacity:0; }
+  }
+  .float-pop{
+    position:fixed; transform:translate(-50%,0); pointer-events:none; z-index:9999;
+    font-family:'IBM Plex Mono', monospace; font-weight:700; font-size:0.82rem; letter-spacing:0.02em;
+    animation:floatUp .75s var(--ease-snap) forwards;
+  }
+  @media (prefers-reduced-motion: reduce){ .btn-pop, .chip-pop, .bump, .card-pop, .float-pop{ animation:none !important; } }
+
+  .wrap{ max-width:1240px; margin:0 auto; padding:0 28px 80px; }
+
+
+  /* ---------- Hero ---------- */
+  header.hero{ padding:40px 0 28px; border-bottom:1px solid var(--border-soft); margin-bottom:32px; animation:heroIn .5s ease-out; }
+  @keyframes heroIn{ from{ opacity:0; transform:translateY(-8px);} to{ opacity:1; transform:translateY(0);} }
+  .hero-top{ display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+  .brand{ display:flex; align-items:center; gap:14px; }
+  .brand h1{
+    font-family:'Bricolage Grotesque', sans-serif;
+    font-size:2.25rem; font-weight:800; letter-spacing:-0.03em; margin:0;
+    background:linear-gradient(135deg, var(--text) 40%, var(--accent) 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .wave{ display:flex; align-items:flex-end; gap:3px; height:28px; }
+  .wave i{
+    display:block; width:4px; border-radius:2px;
+    background:linear-gradient(180deg, var(--accent-2), var(--accent));
+    box-shadow:0 0 8px #ffb02055;
+    animation: bounce 1.4s ease-in-out infinite;
+  }
+  .wave i:nth-child(1){ height:10px; animation-delay:-1.2s; }
+  .wave i:nth-child(2){ height:24px; animation-delay:-0.9s; }
+  .wave i:nth-child(3){ height:15px; animation-delay:-0.6s; }
+  .wave i:nth-child(4){ height:26px; animation-delay:-0.3s; }
+  .wave i:nth-child(5){ height:8px;  animation-delay:0s; }
+  @keyframes bounce{ 0%,100%{ transform:scaleY(0.4); } 50%{ transform:scaleY(1); } }
+  @media (prefers-reduced-motion: reduce){ .wave i, header.hero, .card, .btn-primary{ animation:none !important; } }
+
+  .hero-right{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+
+  .stat-pill{
+    font-family:'IBM Plex Mono', monospace; font-size:0.78rem; color:var(--text-dim);
+    border:1px solid var(--border); padding:7px 12px; border-radius:999px; white-space:nowrap;
+    background:var(--bg-raised); display:inline-flex; align-items:center;
+  }
+  .stat-pill strong{ color:var(--accent); font-weight:600; }
+
+  .sound-toggle{
+    display:flex; align-items:center; justify-content:center; width:34px; height:34px;
+    border-radius:50%; border:1px solid var(--border); background:var(--bg-raised); color:var(--text-dim);
+    cursor:pointer; font-size:0.95rem; transition:border-color .15s,color .15s,transform .22s var(--ease-bounce), box-shadow .22s var(--ease-bounce);
+    flex-shrink:0; box-shadow:0 3px 0 var(--border); transform:translateY(0);
+  }
+  .sound-toggle:hover{ border-color:var(--accent-2); color:var(--accent-2); transform:translateY(-2px) scale(1.1); box-shadow:0 5px 0 var(--accent-2-dim); }
+  .sound-toggle:active{ transform:translateY(3px) scale(0.88,1.08); box-shadow:0 0 0 var(--border); transition-duration:.05s; }
+  .sound-toggle.muted{ color:var(--text-faint); }
+
+  .tuner-display{
+    font-family:'IBM Plex Mono', monospace; font-size:0.74rem; letter-spacing:0.03em;
+    color:var(--text-faint); background:#080a0e; border:1px solid var(--border);
+    padding:9px 14px 9px 12px; border-radius:var(--radius-sm); display:inline-flex; align-items:center; gap:9px;
+    box-shadow:inset 0 0 14px #00000090; margin-top:16px; max-width:100%;
+    transition:color .25s, border-color .25s;
+  }
+  .tuner-led{
+    width:7px; height:7px; border-radius:50%; background:var(--text-faint); flex-shrink:0;
+    transition:background .25s, box-shadow .25s;
+  }
+  .tuner-display.active{ color:var(--gc); border-color:color-mix(in srgb, var(--gc) 45%, var(--border)); }
+  .tuner-display.active .tuner-led{ background:var(--gc); box-shadow:0 0 7px var(--gc); animation:ledPulse 1.6s ease-in-out infinite; }
+  @keyframes ledPulse{ 0%,100%{ opacity:1;} 50%{ opacity:.35;} }
+  #tuner-text{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+  .hero p.tagline{ color:var(--text-dim); max-width:52ch; margin:14px 0 0; font-size:0.98rem; }
+
+  /* ---------- Panel ---------- */
+  .panel{
+    background:var(--bg-panel); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+    border:1px solid var(--border); border-radius:var(--radius-md);
+    padding:26px 26px 24px; margin-bottom:36px;
+    box-shadow:0 1px 0 #ffffff08 inset, 0 20px 40px -30px #000a;
+  }
+  .panel h2{ font-size:0.72rem; letter-spacing:0.06em; color:var(--text-faint); margin:0 0 14px; font-weight:600; text-transform:none; }
+  .panel h2 small{ color:var(--text-faint); font-weight:400; }
+
+  .chips{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:26px; }
+  .chip{
+    background:transparent; border:1px solid var(--border); color:var(--text-dim);
+    padding:7px 13px; border-radius:999px; font-size:0.85rem; cursor:pointer;
+    transition:border-color .15s, color .15s, background .15s, transform .24s var(--ease-bounce);
+  }
+  .chip:hover{ border-color:var(--gc); color:var(--text); transform:translateY(-3px) scale(1.06,0.96); }
+  .chip:active{ transform:translateY(1px) scale(0.86,1.14); transition-duration:.05s; }
+  .chip[aria-pressed="true"]{
+    background:var(--gc); border-color:var(--gc); color:#0b0d12; font-weight:600;
+    box-shadow:0 0 0 3px color-mix(in srgb, var(--gc) 22%, transparent);
+  }
+
+  .controls-row{ display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:28px; align-items:end; margin-bottom:24px; }
+  .control label{ display:block; font-size:0.8rem; color:var(--text-dim); margin-bottom:9px; }
+  .control label .val{ color:var(--accent); font-family:'IBM Plex Mono', monospace; }
+
+  .segmented{ display:flex; border:1px solid var(--border); border-radius:var(--radius-sm); overflow:hidden; width:fit-content; }
+  .segmented button{
+    background:var(--bg-card); border:none; color:var(--text-dim); padding:8px 16px; font-size:0.85rem; cursor:pointer;
+    border-right:1px solid var(--border); transition:background .15s, color .15s;
+  }
+  .segmented button:last-child{ border-right:none; }
+  .segmented button[aria-pressed="true"]{ background:var(--accent-dim); color:var(--accent); font-weight:600; }
+
+  input[type="range"]{
+    -webkit-appearance:none; appearance:none; width:100%; height:4px; border-radius:2px;
+    background:var(--border); outline:none; cursor:pointer;
+  }
+  input[type="range"]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:16px; height:16px; border-radius:50%;
+    background:var(--accent); border:2px solid #0a0c11; cursor:pointer;
+    box-shadow:0 0 10px #ffb02066;
+  }
+  input[type="range"]::-moz-range-thumb{
+    width:14px; height:14px; border-radius:50%; background:var(--accent); border:2px solid #0a0c11; cursor:pointer;
+    box-shadow:0 0 10px #ffb02066;
+  }
+  .count-row{ display:flex; align-items:center; gap:12px; }
+  .count-row input[type="number"]{
+    width:56px; background:var(--bg-card); border:1px solid var(--border); color:var(--text);
+    border-radius:var(--radius-sm); padding:6px 8px; font-family:'IBM Plex Mono', monospace; text-align:center;
+  }
+
+  .discover-row{ display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+  .btn-primary{
+    position:relative; overflow:hidden;
+    background:linear-gradient(135deg, var(--accent) 0%, #ff8a3d 100%); color:#1a1206; border:none; font-weight:700; font-size:0.95rem;
+    padding:13px 28px; border-radius:var(--radius-sm); cursor:pointer;
+    transition:transform .22s var(--ease-bounce), box-shadow .22s var(--ease-bounce);
+    box-shadow:0 5px 0 var(--accent-shadow), 0 10px 26px -10px #ffb02088;
+    transform:translateY(0);
+  }
+  .btn-primary:hover{ box-shadow:0 6px 0 var(--accent-shadow), 0 14px 32px -8px #ffb020cc; transform:translateY(-2px) scale(1.02); }
+  .btn-primary:active{ box-shadow:0 1px 0 var(--accent-shadow), 0 4px 12px -8px #ffb02088; transform:translateY(4px) scale(0.97,1.04); transition-duration:.05s; }
+  .btn-primary:disabled{ background:var(--border); color:var(--text-faint); cursor:not-allowed; box-shadow:none; transform:none; animation:none; }
+  .info-note{ font-size:0.78rem; color:var(--text-faint); max-width:46ch; }
+  .info-note button{ background:none; border:none; color:var(--accent-2); cursor:pointer; padding:0; font-size:inherit; text-decoration:underline; }
+
+  /* ---------- Results ---------- */
+  #status-line{ min-height:20px; margin-bottom:16px; font-size:0.88rem; color:var(--text-dim); }
+  #status-line.error{ color:var(--down); }
+
+  .grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(258px, 1fr)); gap:20px; perspective:1200px; }
+
+  .card{
+    background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-md);
+    display:flex; flex-direction:column; overflow:hidden; transform-style:preserve-3d; will-change:transform;
+    transition:border-color .18s, transform .5s var(--ease-bounce), opacity .2s, box-shadow .3s;
+  }
+  .card::before{ content:''; display:block; height:3px; background:var(--gc, var(--accent)); }
+  .card:hover{
+    border-color:color-mix(in srgb, var(--gc, var(--accent)) 55%, var(--border));
+    transform:translateY(-6px) scale(1.015);
+    box-shadow:0 22px 40px -16px #000d, 0 0 0 1px color-mix(in srgb, var(--gc, var(--accent)) 25%, transparent);
+  }
+  .card.tilting{
+    transition:border-color .18s, transform .08s linear, box-shadow .1s linear;
+    box-shadow:0 26px 46px -14px #000e, 0 0 0 1px color-mix(in srgb, var(--gc, var(--accent)) 35%, transparent);
+  }
+  .card{ cursor:pointer; }
+  .card-actions{ cursor:default; }
+  .card-actions a, .card-actions button{ cursor:pointer; }
+
+  /* ---------- Detail modal ---------- */
+  .modal-overlay{
+    display:none; position:fixed; inset:0; background:#05060acc; backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+    z-index:100; align-items:flex-start; justify-content:center; padding:5vh 20px; overflow-y:auto;
+  }
+  .modal-overlay.open{ display:flex; }
+  .modal-panel{
+    background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-md);
+    max-width:760px; width:100%; position:relative; animation:modalIn .55s var(--ease-bounce);
+    box-shadow:0 30px 80px #000000a0, 0 0 0 1px color-mix(in srgb, var(--gc, var(--accent)) 18%, transparent);
+  }
+  @keyframes modalIn{
+    0%{ opacity:0; transform:translateY(50px) scale(0.7,1.25); }
+    38%{ opacity:1; transform:translateY(-10px) scale(1.07,0.93); }
+    58%{ transform:translateY(4px) scale(0.96,1.05); }
+    76%{ transform:translateY(-4px) scale(1.02,0.99); }
+    90%{ transform:translateY(1px) scale(0.995,1.005); }
+    100%{ opacity:1; transform:translateY(0) scale(1,1); }
+  }
+  .modal-close{
+    position:absolute; top:12px; right:12px; z-index:2; width:32px; height:32px; border-radius:50%;
+    background:#0d0e14dd; border:1px solid var(--border); color:var(--text); font-size:1rem; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; transition:border-color .15s, color .15s, transform .2s var(--ease-bounce);
+  }
+  .modal-close:hover{ border-color:var(--down); color:var(--down); transform:scale(1.1) rotate(90deg); }
+  .modal-close:active{ transform:scale(0.85) rotate(90deg); transition-duration:.05s; }
+  .modal-hero{ width:100%; aspect-ratio:16/7.2; background:#0f1119; overflow:hidden; border-radius:var(--radius-md) var(--radius-md) 0 0; }
+  .modal-hero img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .modal-thumbs{ display:flex; gap:8px; padding:10px 20px; overflow-x:auto; background:#0d0f16; }
+  .modal-thumb{ height:52px; border-radius:3px; cursor:pointer; opacity:0.6; border:1px solid transparent; flex-shrink:0; transition:opacity .15s, border-color .15s; }
+  .modal-thumb:hover{ opacity:1; border-color:var(--gc, var(--accent)); }
+  .modal-body{ padding:22px 26px 26px; }
+  .modal-body h2{ font-family:'Bricolage Grotesque', sans-serif; font-size:1.55rem; margin:0 0 12px; }
+  .modal-stats{ display:flex; flex-wrap:wrap; gap:10px; margin-bottom:12px; }
+  .modal-stats span{
+    font-family:'IBM Plex Mono', monospace; font-size:0.78rem; border:1px solid var(--border);
+    padding:5px 10px; border-radius:999px; color:var(--text-dim);
+  }
+  .modal-stats span.good{ color:var(--up); border-color:var(--up-dim); }
+  .modal-stats span.mixed{ color:var(--accent); border-color:var(--accent-dim); }
+  .modal-tags{ color:var(--gc, var(--accent-2)); font-size:0.82rem; margin:0 0 16px; font-weight:500; }
+  .modal-desc{ font-size:0.92rem; color:var(--text); line-height:1.65; margin-bottom:16px; }
+  .modal-desc img{ max-width:100%; border-radius:4px; margin:8px 0; }
+  .modal-desc h1, .modal-desc h2, .modal-desc h3{ font-family:'Bricolage Grotesque', sans-serif; font-size:1.05rem; margin:16px 0 6px; }
+  .modal-categories, .modal-credits, .modal-platforms{ font-size:0.82rem; color:var(--text-dim); margin:0 0 8px; }
+  .modal-actions{ display:flex; gap:10px; margin-top:20px; flex-wrap:wrap; }
+  .modal-actions .btn-steam{ flex:0 0 auto; padding:10px 18px; }
+  .modal-actions .btn-vote{ padding:10px 16px; }
+  .modal-fallback{ padding:40px 26px; text-align:center; color:var(--text-dim); }
+  .card.leaving{ opacity:0; transform:scale(0.94); pointer-events:none; }
+  .card.entering{ animation:cardIn .62s var(--ease-bounce) backwards; }
+  @keyframes cardIn{
+    0%{ opacity:0; transform:scale(0.6,1.3) translateY(34px) rotate(-2deg); }
+    32%{ opacity:1; transform:scale(1.13,0.86) translateY(-10px) rotate(1.5deg); }
+    52%{ transform:scale(0.9,1.1) translateY(4px) rotate(-1deg); }
+    72%{ transform:scale(1.05,0.96) translateY(-4px) rotate(0.4deg); }
+    88%{ transform:scale(0.98,1.02) translateY(1px) rotate(0); }
+    100%{ opacity:1; transform:scale(1,1) translateY(0) rotate(0); }
+  }
+
+  .card-media{ position:relative; aspect-ratio:460/215; background:#0f1119; overflow:hidden; }
+  .card-media img{ width:100%; height:100%; object-fit:cover; display:block; transition:transform .35s ease; }
+  .card:hover .card-media img{ transform:scale(1.05); }
+  .card-media::after{
+    content:''; position:absolute; inset:0; background:linear-gradient(180deg, transparent 60%, #0b0d1266 100%); pointer-events:none;
+  }
+  .card-media.no-image::before{
+    content:attr(data-letter); position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-family:'Bricolage Grotesque', sans-serif; font-size:3rem; font-weight:700; color:color-mix(in srgb, var(--gc, var(--accent)) 40%, var(--border));
+    background:linear-gradient(135deg,#161a24,#0d0f16);
+  }
+  .badge-score{
+    position:absolute; top:8px; left:8px; background:#0a0b10ee; border:1px solid var(--border);
+    color:var(--text); font-family:'IBM Plex Mono', monospace; font-size:0.72rem; padding:3px 7px; border-radius:var(--radius-sm);
+    z-index:1; backdrop-filter:blur(4px);
+  }
+  .badge-score.good{ color:var(--up); border-color:var(--up-dim); }
+  .badge-score.mixed{ color:var(--accent); border-color:var(--accent-dim); }
+  .badge-price{
+    position:absolute; top:8px; right:8px; background:#0a0b10ee; border:1px solid var(--border);
+    color:var(--text); font-family:'IBM Plex Mono', monospace; font-size:0.72rem; padding:3px 7px; border-radius:var(--radius-sm);
+    z-index:1; backdrop-filter:blur(4px);
+  }
+
+  .card-body{ padding:14px 16px 8px; flex:1; display:flex; flex-direction:column; }
+  .card-title{ font-family:'Bricolage Grotesque', sans-serif; font-size:1.08rem; font-weight:700; margin:0 0 5px; line-height:1.25; }
+  .card-tags{ font-size:0.76rem; color:var(--gc, var(--accent-2)); margin:0 0 8px; font-weight:500; }
+  .card-desc{ font-size:0.83rem; color:var(--text-dim); margin:0 0 10px; flex:1;
+    display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+  .card-reason{ font-size:0.74rem; color:var(--text-faint); border-top:1px dashed var(--border); padding-top:8px; margin:0 0 12px; }
+
+  .card-actions{ display:flex; gap:6px; padding:0 16px 16px; }
+  .btn-steam{
+    flex:1; text-align:center; background:var(--bg-raised); border:1px solid var(--border); color:var(--text);
+    padding:8px 6px; border-radius:var(--radius-sm); font-size:0.78rem; text-decoration:none;
+    transition:border-color .15s, color .15s, transform .22s var(--ease-bounce), box-shadow .22s var(--ease-bounce);
+    box-shadow:0 3px 0 var(--border); transform:translateY(0);
+  }
+  .btn-steam:hover{ border-color:var(--accent-2); color:var(--accent-2); transform:translateY(-2px); box-shadow:0 5px 0 var(--accent-2-dim); }
+  .btn-steam:active{ transform:translateY(3px) scale(0.97,1.05); box-shadow:0 0 0 var(--border); transition-duration:.05s; }
+  .btn-vote{
+    border:1px solid var(--border); background:var(--bg-raised); color:var(--text-dim); cursor:pointer;
+    border-radius:var(--radius-sm); padding:8px 10px; font-size:0.82rem; line-height:1;
+    transition:border-color .15s, color .15s, background .15s, transform .22s var(--ease-bounce), box-shadow .22s var(--ease-bounce);
+    box-shadow:0 3px 0 var(--border); transform:translateY(0);
+  }
+  .btn-vote.up:hover{ border-color:var(--up); color:var(--up); background:var(--up-dim); transform:scale(1.16,0.94) translateY(-2px); box-shadow:0 5px 0 var(--up-dim); }
+  .btn-vote.down:hover{ border-color:var(--down); color:var(--down); background:var(--down-dim); transform:scale(1.16,0.94) translateY(2px); box-shadow:0 5px 0 var(--down-dim); }
+  .btn-vote:active{ transform:scale(0.8,1.12) translateY(3px); box-shadow:0 0 0 var(--border); transition-duration:.05s; }
+
+  .skeleton{ background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-md); overflow:hidden; height:320px; }
+  .skeleton .sk-media{ aspect-ratio:460/215; background:linear-gradient(90deg,#1b1f2c 25%,#242a3c 37%,#1b1f2c 63%); background-size:400% 100%; animation:shimmer 1.4s infinite; }
+  .skeleton .sk-line{ height:10px; margin:16px; border-radius:3px; background:linear-gradient(90deg,#1b1f2c 25%,#242a3c 37%,#1b1f2c 63%); background-size:400% 100%; animation:shimmer 1.4s infinite; }
+  @keyframes shimmer{ 0%{ background-position:100% 0; } 100%{ background-position:-100% 0; } }
+
+  .empty-state{ text-align:center; padding:60px 20px; color:var(--text-dim); border:1px dashed var(--border); border-radius:var(--radius-md); }
+  .empty-state strong{ display:block; color:var(--text); font-size:1.05rem; margin-bottom:6px; font-family:'Bricolage Grotesque', sans-serif; }
+
+  /* ---------- Taste profile / settings ---------- */
+  details.drawer{
+    background:var(--bg-panel); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+    border:1px solid var(--border); border-radius:var(--radius-md); margin-top:24px;
+  }
+  details.drawer summary{ padding:16px 22px; cursor:pointer; font-weight:600; font-size:0.9rem; list-style:none; display:flex; justify-content:space-between; align-items:center; }
+  details.drawer summary::-webkit-details-marker{ display:none; }
+  details.drawer summary::after{ content:'+'; color:var(--text-faint); font-size:1.2rem; }
+  details.drawer[open] summary::after{ content:'−'; color:var(--accent); }
+  .drawer-body{ padding:0 22px 22px; border-top:1px solid var(--border-soft); }
+
+  .profile-empty{ color:var(--text-faint); font-size:0.85rem; padding:14px 0; }
+  .profile-bar-row{ display:grid; grid-template-columns:140px 1fr 48px; align-items:center; gap:10px; margin:8px 0; font-size:0.8rem; }
+  .profile-bar-row .label{ color:var(--text-dim); text-align:right; }
+  .profile-bar-track{ height:8px; background:var(--border); border-radius:4px; overflow:hidden; }
+  .profile-bar-fill{ height:100%; border-radius:4px; transition:width .4s ease; }
+  .profile-bar-fill.boost{ background:linear-gradient(90deg, var(--up-dim), var(--up)); }
+  .profile-bar-fill.suppress{ background:linear-gradient(90deg, var(--down-dim), var(--down)); }
+  .profile-bar-row .num{ font-family:'IBM Plex Mono', monospace; color:var(--text-faint); }
+
+  .row-actions{ display:flex; gap:10px; margin-top:16px; flex-wrap:wrap; }
+  .btn-secondary{
+    background:transparent; border:1px solid var(--border); color:var(--text-dim); padding:8px 14px;
+    border-radius:var(--radius-sm); font-size:0.8rem; cursor:pointer;
+    transition:border-color .15s, color .15s, transform .22s var(--ease-bounce), box-shadow .22s var(--ease-bounce);
+    box-shadow:0 3px 0 var(--border); transform:translateY(0);
+  }
+  .btn-secondary:hover{ border-color:var(--accent-2); color:var(--text); transform:translateY(-2px); box-shadow:0 5px 0 var(--accent-2-dim); }
+  .btn-secondary:active{ transform:translateY(3px) scale(0.95,1.05); box-shadow:0 0 0 var(--border); transition-duration:.05s; }
+
+  .settings-field{ margin:14px 0; }
+  .settings-field label{ display:block; font-size:0.8rem; color:var(--text-dim); margin-bottom:6px; }
+  .settings-field input[type="text"]{
+    width:100%; background:var(--bg-card); border:1px solid var(--border); color:var(--text);
+    padding:9px 12px; border-radius:var(--radius-sm); font-family:'IBM Plex Mono', monospace; font-size:0.8rem;
+  }
+  .settings-field input[type="text"]:focus-visible{ border-color:var(--accent-2); }
+  .settings-field .hint{ font-size:0.74rem; color:var(--text-faint); margin-top:5px; }
+
+  footer{ text-align:center; color:var(--text-faint); font-size:0.76rem; margin-top:50px; padding-top:24px; border-top:1px solid var(--border-soft); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <div class="hero-top">
+      <div class="brand">
+        <div class="wave"><i></i><i></i><i></i><i></i><i></i></div>
+        <h1>SIGNAL</h1>
+      </div>
+      <div class="hero-right">
+        <span class="stat-pill" id="votes-pill">0 votes cast · <strong id="tags-tuned-count">0</strong> tags tuned</span>
+        <button class="sound-toggle" id="sound-toggle" type="button" aria-pressed="true" title="Toggle sound effects">🔊</button>
+      </div>
+    </div>
+    <p class="tagline">Discovers games from live Steam data. Vote on what comes back and every future batch is re-weighted toward what you actually like.</p>
+    <div class="tuner-display" id="tuner-display"><span class="tuner-led"></span><span id="tuner-text">NO SIGNAL — SELECT A GENRE</span></div>
+  </header>
+
+  <section class="panel">
+    <h2>Genres <small>— pick one or more</small></h2>
+    <div class="chips" id="genre-chips"></div>
+
+    <div class="controls-row">
+      <div class="control">
+        <label>Price</label>
+        <div class="segmented" id="price-segmented">
+          <button data-price="any" aria-pressed="true">Any</button>
+          <button data-price="free" aria-pressed="false">Free</button>
+          <button data-price="paid" aria-pressed="false">Paid</button>
+        </div>
+      </div>
+      <div class="control">
+        <label>Minimum rating: <span class="val" id="rating-val">70%</span> positive</label>
+        <input type="range" id="rating-slider" min="0" max="95" step="5" value="70">
+      </div>
+      <div class="control">
+        <label>How many recommendations</label>
+        <div class="count-row">
+          <input type="range" id="count-slider" min="1" max="25" step="1" value="10">
+          <input type="number" id="count-number" min="1" max="25" value="10">
+        </div>
+      </div>
+    </div>
+
+    <div class="discover-row">
+      <button class="btn-primary" id="discover-btn">Discover games</button>
+      <p class="info-note">Steam doesn't allow direct browser access to its API, so this routes through a public relay. If a batch fails to load, hit the button again or check <button id="open-settings">connection settings</button>.</p>
+    </div>
+  </section>
+
+  <div id="status-line"></div>
+  <div class="grid" id="grid"></div>
+
+  <details class="drawer" id="profile-drawer">
+    <summary>Your taste profile</summary>
+    <div class="drawer-body">
+      <div id="profile-content"><p class="profile-empty">No signal yet — vote on a few games below and this fills in with what you're actually drawn to.</p></div>
+      <div class="row-actions">
+        <button class="btn-secondary" id="export-btn">Export profile</button>
+        <button class="btn-secondary" id="import-btn">Import profile</button>
+        <input type="file" id="import-file" accept="application/json" style="display:none">
+        <button class="btn-secondary" id="reset-btn">Reset everything</button>
+      </div>
+    </div>
+  </details>
+
+  <details class="drawer" id="settings-drawer">
+    <summary>Connection settings (advanced)</summary>
+    <div class="drawer-body">
+      <div class="settings-field">
+        <label>Custom CORS relay (optional)</label>
+        <input type="text" id="proxy-input" placeholder="https://your-relay.example.com/?url={url}">
+        <div class="hint">Use <code>{url}</code> as the placeholder for the Steam URL being fetched. Leave blank to use the built-in public relays. Nothing here is saved once you close this page.</div>
+      </div>
+    </div>
+  </details>
+
+  <footer>
+    Data from the Steam Store and SteamSpy public APIs, via a browser-side CORS relay. Votes and tuning live only in this tab — export your profile if you want to keep it.
+  </footer>
+</div>
+
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal-panel" id="modal-panel"></div>
+</div>
+
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------------------------------------------------------------------
+  // Config
+  // ---------------------------------------------------------------------
+  const GENRES = [
+    "Action","Adventure","RPG","Strategy","Simulation","Sports","Racing","Indie","Casual","Puzzle",
+    "Horror","Survival","Open World","Rogue-like","Metroidvania","FPS","Platformer","Multiplayer",
+    "Co-op","Sandbox","Visual Novel","Turn-Based Strategy","Anime","City Builder","Card Game",
+    "Stealth","Point & Click","Tower Defense","Battle Royale","Souls-like"
+  ];
+  const MIN_REVIEWS = 15;          // ignore games with too little review evidence
+  const VOTE_STEP = 0.35;          // how hard one vote pushes a tag's weight
+  const MIN_WEIGHT = 0.15;         // floor so a downvoted tag never hits zero/negative
+
+  // Each genre gets its own hue so the UI visually reflects what you're
+  // tuned into — chip highlights, card accent bars and the tuner readout
+  // all pull from this map.
+  const GENRE_COLORS = {
+    "Action":"#ff5865", "Adventure":"#ffb020", "RPG":"#a06bff", "Strategy":"#4fb6ff",
+    "Simulation":"#38e6d0", "Sports":"#7ee081", "Racing":"#ff8a3d", "Indie":"#ff6bd6",
+    "Casual":"#ffd166", "Puzzle":"#6bdfff", "Horror":"#e0304f", "Survival":"#c99a4f",
+    "Open World":"#4f8bff", "Rogue-like":"#c93bff", "Metroidvania":"#00c2a8", "FPS":"#ff3b3b",
+    "Platformer":"#ffbe4f", "Multiplayer":"#4fd1ff", "Co-op":"#5ff2b0", "Sandbox":"#c9a24f",
+    "Visual Novel":"#ff8fd1", "Turn-Based Strategy":"#5c7cff", "Anime":"#ff6fa8",
+    "City Builder":"#7fd68a", "Card Game":"#e0c05f", "Stealth":"#8b95ab",
+    "Point & Click":"#f2a65a", "Tower Defense":"#69c98a", "Battle Royale":"#ff4f6d",
+    "Souls-like":"#d1455f"
+  };
+  function genreColor(tag){ return GENRE_COLORS[tag] || '#ffb020'; }
+
+  // ---------------------------------------------------------------------
+  // Sound — tiny WebAudio synth, no external files. Each bloop layers a
+  // triangle tone with a faintly detuned sine underneath and a tiny noise
+  // "tick" on the attack, so it lands as a percussive pop rather than a
+  // plain filtered beep. Pitch and gain both glide on a short exponential
+  // curve (fast then settling) instead of a straight ramp, and everything
+  // is quick — this is a tap sound, not a chime.
+  // ---------------------------------------------------------------------
+  const Sound = (() => {
+    let ctx = null;
+    let enabled = true;
+    const NOTE = { C4:261.63, D4:293.66, E4:329.63, F4:349.23, G4:392.00,
+                   A4:440.00, C5:523.25, D5:587.33, E5:659.25, G5:783.99,
+                   A5:880.00, C6:1046.50 };
+    function ensureCtx(){
+      if (!ctx){
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return null;
+        ctx = new Ctx();
+      }
+      if (ctx.state === 'suspended') ctx.resume();
+      return ctx;
+    }
+    function tick(c, t0, gain, filterFreq){
+      const n = Math.floor(c.sampleRate * 0.014);
+      const buf = c.createBuffer(1, n, c.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+      const src = c.createBufferSource();
+      src.buffer = buf;
+      const hp = c.createBiquadFilter();
+      hp.type = 'highpass'; hp.frequency.value = filterFreq;
+      const g = c.createGain();
+      g.gain.setValueAtTime(gain, t0);
+      g.gain.linearRampToValueAtTime(0, t0 + 0.014);
+      src.connect(hp); hp.connect(g); g.connect(c.destination);
+      src.start(t0);
+    }
+    function bloop({freq=440, freqEnd=null, duration=0.09, gain=0.075, filterFreq=2600, delay=0, click=true}={}){
+      if (!enabled) return;
+      try{
+        const c = ensureCtx();
+        if (!c) return;
+        const t0 = c.currentTime + delay;
+        const attack = Math.min(0.005, duration * 0.15);
+        const osc = c.createOscillator();
+        const sub = c.createOscillator();
+        const filter = c.createBiquadFilter();
+        const subGain = c.createGain();
+        const g = c.createGain();
+        osc.type = 'triangle';
+        sub.type = 'sine';
+        sub.detune.setValueAtTime(-9, t0);
+        osc.frequency.setValueAtTime(freq, t0);
+        sub.frequency.setValueAtTime(freq, t0);
+        const end = freqEnd !== null ? Math.max(freqEnd, 20) : null;
+        if (end !== null){
+          osc.frequency.exponentialRampToValueAtTime(end, t0 + duration);
+          sub.frequency.exponentialRampToValueAtTime(end, t0 + duration);
+        }
+        filter.type = 'lowpass'; filter.Q.value = 0.8;
+        filter.frequency.setValueAtTime(filterFreq, t0);
+        subGain.gain.value = 0.32;
+        g.gain.setValueAtTime(0, t0);
+        g.gain.linearRampToValueAtTime(gain, t0 + attack);
+        g.gain.exponentialRampToValueAtTime(0.001, t0 + duration);
+        osc.connect(filter);
+        sub.connect(subGain); subGain.connect(filter);
+        filter.connect(g); g.connect(c.destination);
+        osc.start(t0); osc.stop(t0 + duration + 0.02);
+        sub.start(t0); sub.stop(t0 + duration + 0.02);
+        if (click) tick(c, t0, gain * 0.5, Math.max(filterFreq, 3200));
+      } catch(e){ /* audio unavailable — stay silent */ }
+    }
+    // A short run of bloops in sequence — used where one action deserves
+    // a little musical phrase instead of a single pop.
+    function phrase(notes){
+      notes.forEach(n => bloop(n));
+    }
+    return {
+      toggle(){ enabled = !enabled; return enabled; },
+      isEnabled(){ return enabled; },
+      click(){ bloop({freq:NOTE.E5, duration:0.045, gain:0.06, filterFreq:2800}); },
+      chipOn(){ bloop({freq:NOTE.A4, freqEnd:NOTE.D5, duration:0.07, gain:0.07, filterFreq:2600}); },
+      chipOff(){ bloop({freq:NOTE.C5, freqEnd:NOTE.G4, duration:0.07, gain:0.06, filterFreq:2000}); },
+      sweep(){
+        phrase([
+          {freq:NOTE.C5, freqEnd:NOTE.E5, duration:0.08, gain:0.06, filterFreq:2400, delay:0},
+          {freq:NOTE.E5, freqEnd:NOTE.G5, duration:0.08, gain:0.06, filterFreq:2600, delay:0.065},
+          {freq:NOTE.G5, freqEnd:NOTE.C6, duration:0.12, gain:0.065, filterFreq:3000, delay:0.13},
+        ]);
+      },
+      up(){ bloop({freq:NOTE.C5, freqEnd:NOTE.A5, duration:0.11, gain:0.075, filterFreq:3000}); },
+      down(){ bloop({freq:NOTE.C5, freqEnd:NOTE.E4, duration:0.12, gain:0.07, filterFreq:1500}); },
+      open(){ bloop({freq:NOTE.D5, freqEnd:NOTE.A5, duration:0.09, gain:0.065, filterFreq:2600}); },
+      close(){ bloop({freq:NOTE.A5, freqEnd:NOTE.D5, duration:0.08, gain:0.06, filterFreq:1900}); },
+      error(){
+        phrase([
+          {freq:NOTE.D4, freqEnd:NOTE.C4, duration:0.09, gain:0.065, filterFreq:1100, delay:0, click:false},
+          {freq:NOTE.C4, freqEnd:NOTE.G4*0.94, duration:0.13, gain:0.065, filterFreq:950, delay:0.09, click:false},
+        ]);
+      },
+    };
+  })();
+
+  // ---------------------------------------------------------------------
+  // State (memory-only — see footer note; export/import covers persistence)
+  // ---------------------------------------------------------------------
+  const state = {
+    selectedGenres: new Set(),
+    price: 'any',
+    minRating: 70,
+    weights: {},              // tag -> multiplier, baseline 1
+    blacklist: new Set(),     // downvoted appids, excluded from future picks
+    liked: new Set(),         // upvoted appids, informational
+    pool: [],                 // merged SteamSpy candidates for the current genre set
+    lastGenresKey: null,
+    shown: [],                // currently rendered, detail-enriched games
+    votesCast: 0,
+    proxyOverride: null,
+  };
+
+  const $ = sel => document.querySelector(sel);
+  const grid = $('#grid');
+  const statusLine = $('#status-line');
+
+  // ---------------------------------------------------------------------
+  // Juice — small reusable feedback helpers. bounce() retriggers a CSS
+  // pop animation (forcing reflow so rapid repeat clicks still restart
+  // it); floatPop() spawns a little number/arrow that flies up and fades,
+  // anchored to a button's on-screen position regardless of any parent's
+  // overflow:hidden.
+  // ---------------------------------------------------------------------
+  function bounce(el, cls){
+    if (!el) return;
+    el.classList.remove(cls);
+    void el.offsetWidth; // force reflow so the animation restarts
+    el.classList.add(cls);
+  }
+
+  function floatPop(anchorEl, text, color){
+    if (!anchorEl) return;
+    const rect = anchorEl.getBoundingClientRect();
+    const pop = document.createElement('span');
+    pop.className = 'float-pop';
+    pop.textContent = text;
+    pop.style.left = (rect.left + rect.width / 2) + 'px';
+    pop.style.top = rect.top + 'px';
+    pop.style.color = color;
+    pop.style.textShadow = `0 0 8px ${color}`;
+    document.body.appendChild(pop);
+    pop.addEventListener('animationend', () => pop.remove());
+  }
+
+  // One delegated listener gives every ordinary button/chip a satisfying
+  // punch on click without wiring it into each individual handler.
+  document.addEventListener('click', e => {
+    const b = e.target.closest('.btn-primary, .btn-secondary, .sound-toggle, .segmented button, .btn-vote, .btn-steam, .modal-close, #open-settings');
+    if (b) bounce(b, 'btn-pop');
+  });
+
+  // ---------------------------------------------------------------------
+  // Networking — Steam has no CORS headers on any public endpoint, so every
+  // request is routed through a chain of public relays. First one that
+  // answers wins; if all fail we surface that plainly rather than pretending.
+  // ---------------------------------------------------------------------
+  function getProxyList(){
+    const list = [];
+    if (state.proxyOverride){
+      list.push(url => state.proxyOverride.replace('{url}', encodeURIComponent(url)));
+    }
+    list.push(
+      url => `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
+      url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+      url => `https://thingproxy.freeboard.io/fetch/${url}`
+    );
+    return list;
+  }
+
+  function fetchWithTimeout(url, ms){
+    return Promise.race([
+      fetch(url),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timed out after ' + (ms/1000) + 's')), ms))
+    ]);
+  }
+
+  async function proxyFetchJSON(url){
+    const attempts = [];
+    for (const build of getProxyList()){
+      const proxied = build(url);
+      try{
+        const res = await fetchWithTimeout(proxied, 10000);
+        if (!res.ok){
+          const text = await res.text().catch(()=>'');
+          throw new Error(`HTTP ${res.status}${text ? ' — ' + text.slice(0,150).replace(/\s+/g,' ') : ''}`);
+        }
+        return await res.json();
+      } catch(e){
+        attempts.push(`${proxied.split('?')[0]} → ${e.message}`);
+        console.warn('[SIGNAL] relay attempt failed:', proxied, e);
+      }
+    }
+    const err = new Error(`For ${url.split('?')[0]}:\n` + attempts.join('\n'));
+    err.attempts = attempts;
+    throw err;
+  }
+
+  async function fetchTagPool(tag){
+    const url = `https://steamspy.com/api.php?request=tag&tag=${encodeURIComponent(tag)}`;
+    return proxyFetchJSON(url);
+  }
+
+  async function fetchDetails(appid){
+    try{
+      const url = `https://store.steampowered.com/api/appdetails?appids=${appid}&cc=us&l=en`;
+      const data = await proxyFetchJSON(url);
+      const entry = data && data[appid];
+      if (!entry || !entry.success) return null;
+      return entry.data;
+    } catch(e){ return null; }
+  }
+
+  async function mapLimit(items, limit, fn){
+    const out = new Array(items.length);
+    let i = 0;
+    async function worker(){
+      while (i < items.length){
+        const idx = i++;
+        out[idx] = await fn(items[idx], idx);
+      }
+    }
+    await Promise.all(Array.from({length: Math.min(limit, items.length)}, worker));
+    return out;
+  }
+
+  // ---------------------------------------------------------------------
+  // Scoring — a lightweight content-based re-ranker, not a trained model:
+  //
+  //   score(g) = ( Σ tagWeight[t] for t in g.tags )
+  //              × (0.5 + 0.5 · reviewPositivity(g))
+  //              × log10(totalReviews + 10)
+  //
+  // tagWeight starts at 1 for every tag; each upvote/downvote nudges the
+  // weights of that game's matched tags by ±VOTE_STEP. The review-quality
+  // term keeps universally-loved games from getting buried, and the log
+  // term rewards games with real evidence behind their rating without
+  // letting raw popularity dominate genre fit.
+  //
+  // Recommendations are then drawn via weighted random sampling (no
+  // replacement) from the top slice of scored candidates, so the same
+  // weights still produce a fresh batch each time you ask.
+  // ---------------------------------------------------------------------
+  function getWeight(tag){ return state.weights[tag] ?? 1; }
+
+  function scoreCandidate(c){
+    let tagScore = 0;
+    c.tagsMatched.forEach(t => tagScore += getWeight(t));
+    const quality = c.totalReviews > 0 ? c.positive / c.totalReviews : 0.5;
+    const evidence = Math.log10(c.totalReviews + 10);
+    return tagScore * (0.5 + 0.5 * quality) * evidence;
+  }
+
+  function passesFilters(c){
+    if (state.blacklist.has(c.appid)) return false;
+    if (c.totalReviews < MIN_REVIEWS) return false;
+    const positivity = c.totalReviews > 0 ? c.positive / c.totalReviews : 0;
+    if (positivity * 100 < state.minRating) return false;
+    if (state.price === 'free' && c.priceCents > 0) return false;
+    if (state.price === 'paid' && c.priceCents === 0) return false;
+    return true;
+  }
+
+  function weightedSampleNoReplace(items, n, scoreFn){
+    const pool = items.map(it => ({ it, w: Math.max(scoreFn(it), 0.0001) }));
+    const picked = [];
+    for (let k = 0; k < n && pool.length; k++){
+      const total = pool.reduce((s,p)=>s+p.w, 0);
+      let r = Math.random() * total, idx = 0;
+      for (; idx < pool.length - 1; idx++){ r -= pool[idx].w; if (r <= 0) break; }
+      picked.push(pool[idx].it);
+      pool.splice(idx, 1);
+    }
+    return picked;
+  }
+
+  function pickRecommendations(n, exclude){
+    const excludeSet = exclude || new Set();
+    const candidates = state.pool.filter(c => passesFilters(c) && !excludeSet.has(c.appid));
+    const scored = candidates.map(c => ({ c, s: scoreCandidate(c) }));
+    scored.sort((a,b) => b.s - a.s);
+    const shortlist = scored.slice(0, Math.max(n * 8, 120)).map(x => x.c);
+    return weightedSampleNoReplace(shortlist, Math.min(n, shortlist.length), scoreCandidate);
+  }
+
+  // ---------------------------------------------------------------------
+  // Pool building
+  // ---------------------------------------------------------------------
+  async function buildPool(genres){
+    const results = await Promise.allSettled(genres.map(fetchTagPool));
+    const merged = new Map();
+    let anyOk = false;
+    results.forEach((r, i) => {
+      if (r.status !== 'fulfilled'){
+        console.warn('[SIGNAL] pool fetch failed for tag', genres[i], r.reason);
+        return;
+      }
+      anyOk = true;
+      const tag = genres[i];
+      Object.values(r.value || {}).forEach(g => {
+        if (!g || !g.appid) return;
+        const positive = g.positive || 0, negative = g.negative || 0;
+        if (!merged.has(g.appid)){
+          merged.set(g.appid, {
+            appid: g.appid,
+            name: g.name,
+            positive, negative,
+            totalReviews: positive + negative,
+            priceCents: parseInt(g.price, 10) || 0,
+            tagsMatched: new Set([tag]),
+          });
+        } else {
+          merged.get(g.appid).tagsMatched.add(tag);
+        }
+      });
+    });
+    if (!anyOk){
+      const firstFail = results.find(r => r.status === 'rejected');
+      throw new Error(firstFail ? firstFail.reason.message : 'No relay reachable and no error details were captured.');
+    }
+    state.lastGenresKey = genres.slice().sort().join('|');
+    return Array.from(merged.values());
+  }
+
+  async function enrichWithDetails(picks){
+    return mapLimit(picks, 4, async (c) => {
+      const details = await fetchDetails(c.appid);
+      return Object.assign({}, c, { details });
+    });
+  }
+
+  function needsPoolRefresh(){
+    const key = Array.from(state.selectedGenres).sort().join('|');
+    return key !== state.lastGenresKey || state.pool.length === 0;
+  }
+
+  // ---------------------------------------------------------------------
+  // Rendering — controls
+  // ---------------------------------------------------------------------
+  function buildChips(){
+    const wrap = $('#genre-chips');
+    wrap.innerHTML = GENRES.map(g =>
+      `<button class="chip" type="button" data-genre="${g}" aria-pressed="false" style="--gc:${genreColor(g)}">${g}</button>`
+    ).join('');
+    wrap.addEventListener('click', e => {
+      const btn = e.target.closest('.chip');
+      if (!btn) return;
+      const g = btn.dataset.genre;
+      if (state.selectedGenres.has(g)){
+        state.selectedGenres.delete(g); btn.setAttribute('aria-pressed','false'); Sound.chipOff();
+      } else {
+        state.selectedGenres.add(g); btn.setAttribute('aria-pressed','true'); Sound.chipOn();
+      }
+      bounce(btn, 'chip-pop');
+      updateTuner();
+    });
+  }
+
+  function updateTuner(){
+    const el = $('#tuner-display'), txt = $('#tuner-text');
+    const genres = Array.from(state.selectedGenres);
+    if (!genres.length){
+      el.classList.remove('active');
+      txt.textContent = 'NO SIGNAL — SELECT A GENRE';
+      return;
+    }
+    el.classList.add('active');
+    el.style.setProperty('--gc', genreColor(genres[genres.length - 1]));
+    txt.textContent = 'TUNED TO ' + genres.join(' + ').toUpperCase();
+    bounce(el, 'bump');
+  }
+
+  function wireControls(){
+    $('#price-segmented').addEventListener('click', e => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      [...btn.parentElement.children].forEach(b => b.setAttribute('aria-pressed', b === btn ? 'true' : 'false'));
+      state.price = btn.dataset.price;
+      Sound.click();
+    });
+
+    const ratingSlider = $('#rating-slider'), ratingVal = $('#rating-val');
+    ratingSlider.addEventListener('input', () => {
+      state.minRating = parseInt(ratingSlider.value, 10);
+      ratingVal.textContent = state.minRating + '%';
+    });
+
+    const countSlider = $('#count-slider'), countNumber = $('#count-number');
+    countSlider.addEventListener('input', () => { countNumber.value = countSlider.value; });
+    countNumber.addEventListener('input', () => {
+      let v = Math.max(1, Math.min(25, parseInt(countNumber.value, 10) || 1));
+      countNumber.value = v; countSlider.value = v;
+    });
+
+    $('#discover-btn').addEventListener('click', discover);
+    $('#open-settings').addEventListener('click', () => {
+      Sound.click();
+      $('#settings-drawer').open = true;
+      $('#settings-drawer').scrollIntoView({ behavior:'smooth', block:'center' });
+    });
+    $('#proxy-input').addEventListener('input', e => {
+      state.proxyOverride = e.target.value.trim() || null;
+    });
+
+    $('#reset-btn').addEventListener('click', () => {
+      if (!confirm('Clear all votes, tuned weights and hidden games?')) return;
+      state.weights = {}; state.blacklist.clear(); state.liked.clear(); state.votesCast = 0;
+      renderProfile(); updateVotesPill();
+      Sound.close();
+    });
+    $('#export-btn').addEventListener('click', () => { Sound.click(); exportProfile(); });
+    $('#import-btn').addEventListener('click', () => { Sound.click(); $('#import-file').click(); });
+    $('#import-file').addEventListener('change', importProfile);
+
+    const soundBtn = $('#sound-toggle');
+    soundBtn.addEventListener('click', () => {
+      const on = Sound.toggle();
+      soundBtn.textContent = on ? '🔊' : '🔇';
+      soundBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      soundBtn.classList.toggle('muted', !on);
+      if (on) Sound.click();
+    });
+  }
+
+  function getCount(){ return parseInt($('#count-number').value, 10) || 10; }
+
+  // ---------------------------------------------------------------------
+  // Rendering — results
+  // ---------------------------------------------------------------------
+  function setStatus(msg, isError){
+    statusLine.textContent = msg || '';
+    statusLine.className = isError ? 'error' : '';
+  }
+
+  function renderSkeletons(n){
+    grid.innerHTML = Array.from({length:n}).map(() =>
+      `<div class="skeleton"><div class="sk-media"></div><div class="sk-line" style="width:70%"></div><div class="sk-line" style="width:40%"></div></div>`
+    ).join('');
+  }
+
+  function renderEmpty(message){
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><strong>Nothing to show</strong>${message}</div>`;
+  }
+
+  function scoreBadgeClass(pct){
+    if (pct >= 80) return 'good';
+    if (pct >= 55) return 'mixed';
+    return '';
+  }
+
+  function cardTemplate(g, i=0){
+    const d = g.details;
+    const name = (d && d.name) || g.name || ('App ' + g.appid);
+    const image = d && d.header_image;
+    const desc = (d && d.short_description) || '';
+    const genresList = d && d.genres ? d.genres.map(x=>x.name) : Array.from(g.tagsMatched);
+    const positivity = g.totalReviews > 0 ? Math.round((g.positive / g.totalReviews) * 100) : null;
+    let price;
+    if (d && d.is_free) price = 'Free';
+    else if (d && d.price_overview) price = d.price_overview.final_formatted;
+    else if (g.priceCents === 0) price = 'Free';
+    else price = '$' + (g.priceCents/100).toFixed(2);
+
+    const topTags = Array.from(g.tagsMatched).sort((a,b)=>getWeight(b)-getWeight(a)).slice(0,3);
+    const gc = genreColor(topTags[0] || genresList[0]);
+    const stagger = Math.min(i * 45, 500);
+
+    return `
+      <article class="card entering" data-appid="${g.appid}" style="--gc:${gc}; animation-delay:${stagger}ms;">
+        <div class="card-media ${image ? '' : 'no-image'}" data-letter="${name.charAt(0)}">
+          ${image ? `<img src="${image}" alt="${escapeHtml(name)}" loading="lazy">` : ''}
+          ${positivity !== null ? `<span class="badge-score ${scoreBadgeClass(positivity)}">${positivity}% positive</span>` : ''}
+          <span class="badge-price">${price}</span>
+        </div>
+        <div class="card-body">
+          <h3 class="card-title">${escapeHtml(name)}</h3>
+          <p class="card-tags">${genresList.slice(0,4).join(' · ')}</p>
+          ${desc ? `<p class="card-desc">${escapeHtml(desc)}</p>` : ''}
+          <p class="card-reason">Matched on: ${topTags.join(', ')}</p>
+        </div>
+        <div class="card-actions">
+          <a class="btn-steam" href="https://store.steampowered.com/app/${g.appid}" target="_blank" rel="noopener">View on Steam</a>
+          <button class="btn-vote up" data-vote="up" title="More like this">▲</button>
+          <button class="btn-vote down" data-vote="down" title="Not for me">▼</button>
+        </div>
+      </article>`;
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // Minimal sanitizer for Steam's own HTML description fields — strips
+  // executable content but keeps formatting (headings, lists, images).
+  function sanitizeHtml(html){
+    const div = document.createElement('div');
+    div.innerHTML = html || '';
+    div.querySelectorAll('script,style,iframe,object,embed,link').forEach(el => el.remove());
+    div.querySelectorAll('*').forEach(el => {
+      [...el.attributes].forEach(attr => {
+        if (/^on/i.test(attr.name)) el.removeAttribute(attr.name);
+        if (attr.name === 'href' && /^\s*javascript:/i.test(attr.value)) el.removeAttribute(attr.name);
+      });
+    });
+    return div.innerHTML;
+  }
+
+  // ---------------------------------------------------------------------
+  // Detail modal
+  // ---------------------------------------------------------------------
+  const modalOverlay = $('#modal-overlay');
+  const modalPanel = $('#modal-panel');
+
+  function priceLabel(g){
+    const d = g.details;
+    if (d && d.is_free) return 'Free';
+    if (d && d.price_overview) return d.price_overview.final_formatted;
+    if (g.priceCents === 0) return 'Free';
+    return '$' + (g.priceCents / 100).toFixed(2);
+  }
+
+  function modalTemplate(g){
+    const d = g.details;
+    const name = (d && d.name) || g.name || ('App ' + g.appid);
+
+    if (!d){
+      return `
+        <button class="modal-close" id="modal-close" aria-label="Close">✕</button>
+        <div class="modal-fallback">
+          <h2 style="font-family:'Bricolage Grotesque',sans-serif;margin-top:0">${escapeHtml(name)}</h2>
+          <p>Full store details couldn't be loaded for this one (relay hiccup), just the SteamSpy summary.</p>
+          <p class="modal-stats" style="justify-content:center">
+            <span>${priceLabel(g)}</span>
+            ${g.totalReviews ? `<span>${Math.round(g.positive/g.totalReviews*100)}% positive · ${g.totalReviews.toLocaleString()} reviews</span>` : ''}
+          </p>
+          <div class="modal-actions" style="justify-content:center">
+            <a class="btn-steam" href="https://store.steampowered.com/app/${g.appid}" target="_blank" rel="noopener">Open on Steam</a>
+            <button class="btn-secondary" id="modal-retry">Retry loading details</button>
+            <button class="btn-vote up" data-vote="up">▲ More like this</button>
+            <button class="btn-vote down" data-vote="down">▼ Not for me</button>
+          </div>
+        </div>`;
+    }
+
+    const screenshots = d.screenshots || [];
+    const heroImg = (screenshots[0] && screenshots[0].path_full) || d.header_image || '';
+    const desc = sanitizeHtml(d.about_the_game || d.detailed_description || d.short_description || '');
+    const developers = d.developers ? d.developers.join(', ') : '—';
+    const publishers = d.publishers ? d.publishers.join(', ') : '—';
+    const releaseDate = d.release_date ? d.release_date.date : '—';
+    const genresList = d.genres ? d.genres.map(x => x.name) : Array.from(g.tagsMatched);
+    const categories = d.categories ? d.categories.map(c => c.description) : [];
+    const metacritic = d.metacritic ? d.metacritic.score : null;
+    const positivity = g.totalReviews > 0 ? Math.round((g.positive / g.totalReviews) * 100) : null;
+    const platforms = d.platforms ? Object.entries(d.platforms).filter(([,v]) => v).map(([k]) => k.charAt(0).toUpperCase() + k.slice(1)) : [];
+
+    return `
+      <button class="modal-close" id="modal-close" aria-label="Close">✕</button>
+      ${heroImg ? `<div class="modal-hero"><img src="${heroImg}" alt="${escapeHtml(name)}"></div>` : ''}
+      ${screenshots.length ? `<div class="modal-thumbs">${screenshots.slice(0,8).map(s => `<img class="modal-thumb" src="${s.path_thumbnail}" data-full="${s.path_full}" alt="">`).join('')}</div>` : ''}
+      <div class="modal-body">
+        <h2>${escapeHtml(name)}</h2>
+        <div class="modal-stats">
+          <span>${priceLabel(g)}</span>
+          ${positivity !== null ? `<span class="${scoreBadgeClass(positivity)}">${positivity}% positive · ${g.totalReviews.toLocaleString()} reviews</span>` : ''}
+          ${metacritic ? `<span>Metacritic ${metacritic}</span>` : ''}
+          <span>${releaseDate}</span>
+        </div>
+        <p class="modal-tags">${genresList.join(' · ')}</p>
+        <div class="modal-desc">${desc}</div>
+        ${categories.length ? `<p class="modal-categories"><strong>Features:</strong> ${categories.join(', ')}</p>` : ''}
+        <p class="modal-credits"><strong>Developer:</strong> ${escapeHtml(developers)} &nbsp;&nbsp; <strong>Publisher:</strong> ${escapeHtml(publishers)}</p>
+        ${platforms.length ? `<p class="modal-platforms"><strong>Platforms:</strong> ${platforms.join(', ')}</p>` : ''}
+        <div class="modal-actions">
+          <a class="btn-steam" href="https://store.steampowered.com/app/${g.appid}" target="_blank" rel="noopener">Open on Steam</a>
+          <button class="btn-vote up" data-vote="up">▲ More like this</button>
+          <button class="btn-vote down" data-vote="down">▼ Not for me</button>
+        </div>
+      </div>`;
+  }
+
+  function openModal(appid){
+    const g = findShown(appid);
+    if (!g) return;
+    const card = grid.querySelector(`[data-appid="${appid}"]`);
+    modalPanel.style.setProperty('--gc', card ? getComputedStyle(card).getPropertyValue('--gc') : '');
+    modalPanel.innerHTML = modalTemplate(g);
+    modalPanel.dataset.appid = appid;
+    modalOverlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    Sound.open();
+  }
+
+  function closeModal(){
+    modalOverlay.classList.remove('open');
+    modalPanel.innerHTML = '';
+    document.body.style.overflow = '';
+    Sound.close();
+  }
+
+  modalOverlay.addEventListener('click', e => {
+    if (e.target === modalOverlay) closeModal();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && modalOverlay.classList.contains('open')) closeModal();
+  });
+  modalPanel.addEventListener('click', async e => {
+    const appid = parseInt(modalPanel.dataset.appid, 10);
+    if (e.target.closest('#modal-close')){ closeModal(); return; }
+    const thumb = e.target.closest('.modal-thumb');
+    if (thumb){ modalPanel.querySelector('.modal-hero img').src = thumb.dataset.full; return; }
+    const voteBtn = e.target.closest('[data-vote]');
+    if (voteBtn){
+      if (voteBtn.dataset.vote === 'up') upvote(appid, voteBtn); else downvote(appid, voteBtn);
+      closeModal();
+      return;
+    }
+    if (e.target.closest('#modal-retry')){
+      const g = findShown(appid);
+      if (!g) return;
+      modalPanel.innerHTML = `<div class="modal-fallback"><p>Retrying…</p></div>`;
+      const details = await fetchDetails(appid);
+      g.details = details;
+      modalPanel.innerHTML = modalTemplate(g);
+    }
+  });
+
+  function findShown(appid){ return state.shown.find(g => g.appid === appid); }
+
+
+
+  function renderCards(list){
+    if (!list.length){ renderEmpty('<p>No games matched your filters. Try lowering the minimum rating, adding more genres, or switching the price filter.</p>'); return; }
+    grid.innerHTML = list.map((g, i) => cardTemplate(g, i)).join('');
+  }
+
+  grid.addEventListener('click', e => {
+    const voteBtn = e.target.closest('[data-vote]');
+    const steamLink = e.target.closest('.btn-steam');
+    const card = e.target.closest('.card');
+    if (!card) return;
+    const appid = parseInt(card.dataset.appid, 10);
+    if (voteBtn){
+      if (voteBtn.dataset.vote === 'up') upvote(appid, voteBtn); else downvote(appid, voteBtn);
+      return;
+    }
+    if (steamLink) return; // let the anchor's own click (opens Steam in a new tab) proceed
+    openModal(appid);
+  });
+
+  // Real 3D tilt: the card leans toward the cursor like it's a physical
+  // card catching light, then springs flat again on mouse-out. Throttled
+  // to one update per animation frame so it tracks smoothly instead of
+  // fighting the card's own bounce transition.
+  (function wireCardTilt(){
+    let raf = null;
+    grid.addEventListener('mousemove', e => {
+      const card = e.target.closest('.card');
+      if (!card) return;
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = null;
+        const r = card.getBoundingClientRect();
+        const px = (e.clientX - r.left) / r.width;
+        const py = (e.clientY - r.top) / r.height;
+        const rx = (0.5 - py) * 14;
+        const ry = (px - 0.5) * 14;
+        card.classList.add('tilting');
+        card.style.transform = `perspective(800px) rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg) translateY(-8px) scale(1.03)`;
+      });
+    });
+    grid.addEventListener('mouseout', e => {
+      const card = e.target.closest('.card');
+      if (!card || card.contains(e.relatedTarget)) return;
+      card.classList.remove('tilting');
+      card.style.transform = '';
+    });
+  })();
+
+  // ---------------------------------------------------------------------
+  // Voting
+  // ---------------------------------------------------------------------
+  function nudgeWeights(tagsMatched, delta){
+    tagsMatched.forEach(t => {
+      const next = (state.weights[t] ?? 1) + delta;
+      state.weights[t] = Math.max(MIN_WEIGHT, Math.round(next * 100) / 100);
+    });
+  }
+
+  function upvote(appid, anchorEl){
+    const g = findShown(appid);
+    if (!g) return;
+    nudgeWeights(g.tagsMatched, VOTE_STEP);
+    state.liked.add(appid);
+    state.votesCast++;
+    Sound.up();
+    const card = grid.querySelector(`[data-appid="${appid}"]`);
+    floatPop(anchorEl || card, '▲ LIKED', 'var(--up)');
+    if (card){
+      card.style.borderColor = 'var(--up)';
+      bounce(card, 'card-pop');
+      setTimeout(()=>{ if(card) card.style.borderColor=''; }, 500);
+    }
+    renderProfile(); updateVotesPill();
+  }
+
+  async function downvote(appid, anchorEl){
+    const g = findShown(appid);
+    if (!g) return;
+    nudgeWeights(g.tagsMatched, -VOTE_STEP);
+    state.blacklist.add(appid);
+    state.liked.delete(appid);
+    state.votesCast++;
+    Sound.down();
+    const card = grid.querySelector(`[data-appid="${appid}"]`);
+    floatPop(anchorEl || card, '▼ HIDDEN', 'var(--down)');
+    renderProfile(); updateVotesPill();
+
+    if (card) card.classList.add('leaving');
+    setTimeout(async () => {
+      const shownIds = new Set(state.shown.map(x => x.appid));
+      const [replacement] = pickRecommendations(1, shownIds);
+      if (!replacement){
+        state.shown = state.shown.filter(x => x.appid !== appid);
+        if (card) card.remove();
+        return;
+      }
+      const [enriched] = await enrichWithDetails([replacement]);
+      state.shown = state.shown.map(x => x.appid === appid ? enriched : x);
+      if (card) card.outerHTML = cardTemplate(enriched);
+    }, 200);
+  }
+
+  function updateVotesPill(){
+    const tuned = Object.keys(state.weights).length;
+    const pill = $('#votes-pill');
+    pill.innerHTML = `${state.votesCast} votes cast · <strong id="tags-tuned-count">${tuned}</strong> tags tuned`;
+    bounce(pill, 'bump');
+  }
+
+  // ---------------------------------------------------------------------
+  // Taste profile panel
+  // ---------------------------------------------------------------------
+  function renderProfile(){
+    const entries = Object.entries(state.weights).filter(([,w]) => Math.abs(w - 1) > 0.01);
+    const content = $('#profile-content');
+    if (!entries.length){
+      content.innerHTML = `<p class="profile-empty">No signal yet — vote on a few games below and this fills in with what you're actually drawn to.</p>`;
+      return;
+    }
+    entries.sort((a,b) => b[1] - a[1]);
+    const maxDev = Math.max(...entries.map(([,w]) => Math.abs(w-1)), 0.5);
+    content.innerHTML = entries.map(([tag,w]) => {
+      const dev = w - 1;
+      const pct = Math.min(100, Math.round((Math.abs(dev)/maxDev)*100));
+      const cls = dev >= 0 ? 'boost' : 'suppress';
+      return `<div class="profile-bar-row">
+        <span class="label">${tag}</span>
+        <div class="profile-bar-track"><div class="profile-bar-fill ${cls}" style="width:${pct}%"></div></div>
+        <span class="num">${w.toFixed(2)}×</span>
+      </div>`;
+    }).join('');
+  }
+
+  function exportProfile(){
+    const data = {
+      weights: state.weights,
+      blacklist: Array.from(state.blacklist),
+      liked: Array.from(state.liked),
+      votesCast: state.votesCast,
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'signal-taste-profile.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function importProfile(e){
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try{
+        const data = JSON.parse(reader.result);
+        state.weights = data.weights || {};
+        state.blacklist = new Set(data.blacklist || []);
+        state.liked = new Set(data.liked || []);
+        state.votesCast = data.votesCast || 0;
+        renderProfile(); updateVotesPill();
+        setStatus('Taste profile imported.');
+      } catch(err){
+        setStatus('That file did not look like a SIGNAL profile export.', true);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  }
+
+  // ---------------------------------------------------------------------
+  // Main discover flow
+  // ---------------------------------------------------------------------
+  async function discover(){
+    if (state.selectedGenres.size === 0){
+      setStatus('Pick at least one genre to get started.', true);
+      return;
+    }
+    const btn = $('#discover-btn');
+    btn.disabled = true;
+    Sound.sweep();
+    const n = getCount();
+    renderSkeletons(n);
+    setStatus('Talking to Steam through the relay…');
+
+    try{
+      if (needsPoolRefresh()){
+        state.pool = await buildPool(Array.from(state.selectedGenres));
+      }
+      const picks = pickRecommendations(n, new Set());
+      if (!picks.length){
+        renderEmpty('<p>No games matched your filters. Try lowering the minimum rating, adding more genres, or switching the price filter.</p>');
+        setStatus('');
+        btn.disabled = false;
+        return;
+      }
+      setStatus('Fetching store details for ' + picks.length + ' games…');
+      const enriched = await enrichWithDetails(picks);
+      state.shown = enriched;
+      renderCards(enriched);
+      setStatus(`Showing ${enriched.length} games matched to ${state.selectedGenres.size} genre${state.selectedGenres.size>1?'s':''}. Vote to sharpen the next batch.`);
+    } catch(err){
+      console.error('[SIGNAL] discover() failed:', err);
+      Sound.error();
+      const detail = (err && err.message ? err.message : 'unknown error').replace(/</g,'&lt;');
+      renderEmpty(`<p>Couldn't reach Steam's data through any available relay right now. Every relay's actual response is below — open the browser console (F12) for full detail.</p>
+        <pre style="text-align:left;white-space:pre-wrap;font-family:'IBM Plex Mono',monospace;font-size:0.72rem;color:var(--down);background:#1b0f11;border:1px solid var(--down-dim);border-radius:6px;padding:12px;margin-top:14px;max-width:640px;margin-left:auto;margin-right:auto;">${detail}</pre>`);
+      setStatus('Relay error — see details above.', true);
+    }
+    btn.disabled = false;
+  }
+
+  // ---------------------------------------------------------------------
+  // Init
+  // ---------------------------------------------------------------------
+  buildChips();
+  wireControls();
+  renderProfile();
+  updateVotesPill();
+  updateTuner();
+})();
+</script>
+</body>
+</html>
