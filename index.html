@@ -29,6 +29,7 @@
     --up-dim:#1c3a2b;
     --down:#ff5566;
     --down-dim:#3d1f26;
+    --fav:#edd974;
     --radius-sm:5px;
     --radius-md:9px;
     --gc:var(--accent);
@@ -352,7 +353,7 @@
     background:linear-gradient(135deg,#161a24,#0d0f16);
   }
   .badge-score{
-    position:absolute; top:8px; left:8px; background:#0a0b10ee; border:1px solid var(--border);
+    position:absolute; top:8px; left:44px; background:#0a0b10ee; border:1px solid var(--border);
     color:var(--text); font-family:'IBM Plex Mono', monospace; font-size:0.72rem; padding:3px 7px; border-radius:var(--radius-sm);
     z-index:1; backdrop-filter:blur(4px);
   }
@@ -363,6 +364,44 @@
     color:var(--text); font-family:'IBM Plex Mono', monospace; font-size:0.72rem; padding:3px 7px; border-radius:var(--radius-sm);
     z-index:1; backdrop-filter:blur(4px);
   }
+  .card.pinned{ border-color:color-mix(in srgb, var(--fav) 45%, var(--border)); box-shadow:0 0 0 1px color-mix(in srgb, var(--fav) 25%, transparent); }
+
+  /* ---------- Favorite star toggle ---------- */
+  .star-toggle{
+    position:absolute; top:8px; left:8px; z-index:2; width:30px; height:30px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center; padding:0;
+    background:#0a0b10ee; border:1px solid var(--border); backdrop-filter:blur(4px); cursor:pointer;
+    transition:transform .22s var(--ease-bounce), border-color .2s, box-shadow .2s;
+  }
+  .star-toggle svg{ width:16px; height:16px; overflow:visible; }
+  .star-toggle path{
+    fill:none; stroke:var(--text-dim); stroke-width:1.6; stroke-linejoin:round;
+    transition:fill .25s, stroke .25s;
+  }
+  .star-toggle:hover{ transform:scale(1.14) translateY(-1px); border-color:color-mix(in srgb, var(--fav) 55%, var(--border)); }
+  .star-toggle:hover path{ stroke:var(--fav); }
+  .star-toggle:active{ transform:scale(0.85); transition-duration:.05s; }
+  .star-toggle.is-fav{ border-color:color-mix(in srgb, var(--fav) 60%, var(--border)); box-shadow:0 0 12px color-mix(in srgb, var(--fav) 45%, transparent); }
+  .star-toggle.is-fav path{ fill:var(--fav); stroke:var(--fav); }
+  @keyframes starPop{
+    0%{ transform:scale(1) rotate(0); }
+    28%{ transform:scale(1.55) rotate(-16deg); }
+    52%{ transform:scale(0.82) rotate(10deg); }
+    74%{ transform:scale(1.16) rotate(-5deg); }
+    90%{ transform:scale(0.97) rotate(2deg); }
+    100%{ transform:scale(1) rotate(0); }
+  }
+  .star-toggle.pop{ animation:starPop .5s var(--ease-bounce); }
+  @keyframes sparkleBurst{
+    0%{ transform:translate(-50%,-50%) translate(0,0) scale(0.3) rotate(0deg); opacity:1; }
+    65%{ opacity:1; }
+    100%{ transform:translate(-50%,-50%) translate(var(--dx),var(--dy)) scale(1) rotate(60deg); opacity:0; }
+  }
+  .star-sparkle{
+    position:fixed; pointer-events:none; z-index:9999; font-size:13px; color:var(--fav);
+    text-shadow:0 0 6px color-mix(in srgb, var(--fav) 70%, transparent); animation:sparkleBurst .65s var(--ease-snap) forwards;
+  }
+  @media (prefers-reduced-motion: reduce){ .star-toggle.pop, .star-sparkle{ animation:none !important; } }
 
   .card-body{ padding:14px 16px 8px; flex:1; display:flex; flex-direction:column; }
   .card-title{ font-family:'Bricolage Grotesque', sans-serif; font-size:1.08rem; font-weight:700; margin:0 0 5px; line-height:1.25; }
@@ -543,6 +582,7 @@
   const MIN_REVIEWS = 15;          // ignore games with too little review evidence
   const VOTE_STEP = 0.35;          // how hard one vote pushes a tag's weight
   const MIN_WEIGHT = 0.15;         // floor so a downvoted tag never hits zero/negative
+  const FAVORITE_MULT = 2.5;       // a favorite (pinned like) counts as this many ordinary votes
 
   // Each genre gets its own hue so the UI visually reflects what you're
   // tuned into — chip highlights, card accent bars and the tuner readout
@@ -654,6 +694,13 @@
       },
       up(){ bloop({freq:NOTE.C5, freqEnd:NOTE.A5, duration:0.11, gain:0.075, filterFreq:3000}); },
       down(){ bloop({freq:NOTE.C5, freqEnd:NOTE.E4, duration:0.12, gain:0.07, filterFreq:1500}); },
+      star(){
+        phrase([
+          {freq:NOTE.E5, freqEnd:NOTE.A5, duration:0.06, gain:0.07, filterFreq:3400, delay:0},
+          {freq:NOTE.A5, freqEnd:NOTE.C6, duration:0.1, gain:0.08, filterFreq:3800, delay:0.05},
+        ]);
+      },
+      unstar(){ bloop({freq:NOTE.C6, freqEnd:NOTE.E5, duration:0.08, gain:0.05, filterFreq:2200}); },
       open(){ bloop({freq:NOTE.D5, freqEnd:NOTE.A5, duration:0.09, gain:0.065, filterFreq:2600}); },
       close(){ bloop({freq:NOTE.A5, freqEnd:NOTE.D5, duration:0.08, gain:0.06, filterFreq:1900}); },
       error(){
@@ -675,6 +722,7 @@
     weights: {},              // tag -> multiplier, baseline 1
     blacklist: new Set(),     // downvoted appids, excluded from future picks
     liked: new Set(),         // upvoted appids, informational
+    favorited: new Set(),     // starred appids — pinned, never auto-replaced, weighted like FAVORITE_MULT votes
     pool: [],                 // merged SteamSpy candidates for the current genre set
     lastGenresKey: null,
     shown: [],                // currently rendered, detail-enriched games
@@ -726,8 +774,12 @@
   // request is routed through a chain of public relays. First one that
   // answers wins; if all fail we surface that plainly rather than pretending.
   // ---------------------------------------------------------------------
+  const BUILT_IN_RELAY = 'https://floral-union-9b96.mj1891238.workers.dev/?url={url}';
+
   function getProxyList(){
-    const list = [];
+    const list = [
+      url => BUILT_IN_RELAY.replace('{url}', encodeURIComponent(url)),
+    ];
     if (state.proxyOverride){
       list.push(url => state.proxyOverride.replace('{url}', encodeURIComponent(url)));
     }
@@ -799,14 +851,27 @@
   // Scoring — a lightweight content-based re-ranker, not a trained model:
   //
   //   score(g) = ( Σ tagWeight[t] for t in g.tags )
-  //              × (0.5 + 0.5 · reviewPositivity(g))
+  //              × (0.3 + 0.7 · wilsonPositivity(g))
   //              × log10(totalReviews + 10)
+  //              × (1 + log10(owners + 10) / 25)
+  //              × (1 + log10(avgPlaytime + 10) / 30)
   //
-  // tagWeight starts at 1 for every tag; each upvote/downvote nudges the
-  // weights of that game's matched tags by ±VOTE_STEP. The review-quality
-  // term keeps universally-loved games from getting buried, and the log
-  // term rewards games with real evidence behind their rating without
-  // letting raw popularity dominate genre fit.
+  // tagWeight starts at 1 for every tag; each vote nudges the weights of
+  // that game's matched tags by ±VOTE_STEP, and favoriting a game (which
+  // also pins it) nudges by VOTE_STEP × FAVORITE_MULT — a favorite counts
+  // for FAVORITE_MULT ordinary votes' worth of signal.
+  //
+  // "Positivity" is no longer just positive/(positive+negative): a game
+  // with 4/5 positive reviews and one with 4,000/5,000 positive reviews
+  // both have an 80% ratio, but the second is far more trustworthy. The
+  // Wilson score lower bound accounts for sample size directly, so thin
+  // review counts get pulled toward neutral instead of swinging the score
+  // on a handful of reviews.
+  //
+  // Owners (audience size) and all-time average playtime are pulled in
+  // as extra, log-dampened multipliers — real popularity/engagement
+  // evidence beyond the review split, capped so they nudge rather than
+  // dominate genre fit.
   //
   // Recommendations are then drawn via weighted random sampling (no
   // replacement) from the top slice of scored candidates, so the same
@@ -814,12 +879,27 @@
   // ---------------------------------------------------------------------
   function getWeight(tag){ return state.weights[tag] ?? 1; }
 
+  // Wilson score lower bound for a Bernoulli proportion (z=1.96 → ~95%
+  // confidence). Returns a conservative estimate of "true" positivity
+  // that accounts for how much evidence (n) backs the ratio.
+  function wilsonLowerBound(positive, n){
+    if (n <= 0) return 0;
+    const z = 1.96;
+    const phat = positive / n;
+    const denom = 1 + (z * z) / n;
+    const centre = phat + (z * z) / (2 * n);
+    const margin = z * Math.sqrt((phat * (1 - phat) + (z * z) / (4 * n)) / n);
+    return Math.max(0, (centre - margin) / denom);
+  }
+
   function scoreCandidate(c){
     let tagScore = 0;
     c.tagsMatched.forEach(t => tagScore += getWeight(t));
-    const quality = c.totalReviews > 0 ? c.positive / c.totalReviews : 0.5;
+    const quality = wilsonLowerBound(c.positive, c.totalReviews);
     const evidence = Math.log10(c.totalReviews + 10);
-    return tagScore * (0.5 + 0.5 * quality) * evidence;
+    const popularity = 1 + Math.log10((c.owners || 0) + 10) / 25;
+    const engagement = 1 + Math.log10((c.avgPlaytime || 0) + 10) / 30;
+    return tagScore * (0.3 + 0.7 * quality) * evidence * popularity * engagement;
   }
 
   function passesFilters(c){
@@ -857,6 +937,18 @@
   // ---------------------------------------------------------------------
   // Pool building
   // ---------------------------------------------------------------------
+  // SteamSpy's tag endpoint returns more than just review counts — owners
+  // (as a range estimate), all-time average playtime, and current
+  // concurrent players are all in the same payload. We pull all of it in
+  // now so scoring has real popularity/engagement signal to work with,
+  // not just the positive/negative review split.
+  function parseOwnersRange(str){
+    if (!str) return 0;
+    const nums = String(str).split('..').map(s => parseInt(s.replace(/[^\d]/g, ''), 10)).filter(n => !isNaN(n));
+    if (!nums.length) return 0;
+    return nums.length === 1 ? nums[0] : (nums[0] + nums[1]) / 2;
+  }
+
   async function buildPool(genres){
     const results = await Promise.allSettled(genres.map(fetchTagPool));
     const merged = new Map();
@@ -878,6 +970,9 @@
             positive, negative,
             totalReviews: positive + negative,
             priceCents: parseInt(g.price, 10) || 0,
+            owners: parseOwnersRange(g.owners),
+            avgPlaytime: g.average_forever || 0,      // all-time avg playtime, minutes
+            ccu: g.ccu || 0,                          // current concurrent players
             tagsMatched: new Set([tag]),
           });
         } else {
@@ -975,7 +1070,7 @@
 
     $('#reset-btn').addEventListener('click', () => {
       if (!confirm('Clear all votes, tuned weights and hidden games?')) return;
-      state.weights = {}; state.blacklist.clear(); state.liked.clear(); state.votesCast = 0;
+      state.weights = {}; state.blacklist.clear(); state.liked.clear(); state.favorited.clear(); state.votesCast = 0;
       renderProfile(); updateVotesPill();
       Sound.close();
     });
@@ -1035,11 +1130,15 @@
     const topTags = Array.from(g.tagsMatched).sort((a,b)=>getWeight(b)-getWeight(a)).slice(0,3);
     const gc = genreColor(topTags[0] || genresList[0]);
     const stagger = Math.min(i * 45, 500);
+    const isFav = state.favorited.has(g.appid);
 
     return `
-      <article class="card entering" data-appid="${g.appid}" style="--gc:${gc}; animation-delay:${stagger}ms;">
+      <article class="card entering${isFav ? ' pinned' : ''}" data-appid="${g.appid}" style="--gc:${gc}; animation-delay:${stagger}ms;">
         <div class="card-media ${image ? '' : 'no-image'}" data-letter="${name.charAt(0)}">
           ${image ? `<img src="${image}" alt="${escapeHtml(name)}" loading="lazy">` : ''}
+          <button class="star-toggle${isFav ? ' is-fav' : ''}" data-star="${g.appid}" aria-pressed="${isFav}" title="${isFav ? 'Remove favorite' : 'Favorite — pin this pick'}">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          </button>
           ${positivity !== null ? `<span class="badge-score ${scoreBadgeClass(positivity)}">${positivity}% positive</span>` : ''}
           <span class="badge-price">${price}</span>
         </div>
@@ -1206,6 +1305,12 @@
   }
 
   grid.addEventListener('click', e => {
+    const starBtn = e.target.closest('[data-star]');
+    if (starBtn){
+      const appid = parseInt(starBtn.dataset.star, 10);
+      toggleFavorite(appid, starBtn);
+      return;
+    }
     const voteBtn = e.target.closest('[data-vote]');
     const steamLink = e.target.closest('.btn-steam');
     const card = e.target.closest('.card');
@@ -1258,7 +1363,7 @@
     });
   }
 
-  function upvote(appid, anchorEl){
+  async function upvote(appid, anchorEl){
     const g = findShown(appid);
     if (!g) return;
     nudgeWeights(g.tagsMatched, VOTE_STEP);
@@ -1273,12 +1378,116 @@
       setTimeout(()=>{ if(card) card.style.borderColor=''; }, 500);
     }
     renderProfile(); updateVotesPill();
+
+    // A like is a signal that the whole batch should get sharper, not
+    // just the one card you clicked. Re-roll every other still-shown
+    // game against the freshly nudged weights; favorited/starred games
+    // are pinned and are never touched by this.
+    await refreshUnpinned(appid);
+  }
+
+  // Tiny sparkle particles that burst outward from the star and fade —
+  // purely cosmetic feedback for favoriting, anchored to the button's
+  // real on-screen position (fixed positioning survives any ancestor's
+  // overflow:hidden or transform).
+  function starBurst(anchorEl){
+    if (!anchorEl) return;
+    const rect = anchorEl.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+    const n = 7;
+    for (let i = 0; i < n; i++){
+      const angle = (Math.PI * 2 / n) * i + (Math.random() * 0.5 - 0.25);
+      const dist = 24 + Math.random() * 16;
+      const spark = document.createElement('span');
+      spark.className = 'star-sparkle';
+      spark.textContent = Math.random() < 0.5 ? '✦' : '✧';
+      spark.style.left = cx + 'px';
+      spark.style.top = cy + 'px';
+      spark.style.setProperty('--dx', (Math.cos(angle) * dist).toFixed(1) + 'px');
+      spark.style.setProperty('--dy', (Math.sin(angle) * dist).toFixed(1) + 'px');
+      document.body.appendChild(spark);
+      spark.addEventListener('animationend', () => spark.remove());
+    }
+  }
+
+  // Favoriting is its own action, separate from liking: it pins the card
+  // (never auto-replaced by refreshUnpinned) and counts as FAVORITE_MULT
+  // ordinary votes toward its matched tags. Clicking again un-favorites
+  // and cleanly reverses that weight nudge.
+  async function toggleFavorite(appid, anchorEl){
+    const g = findShown(appid);
+    if (!g) return;
+    const card = grid.querySelector(`[data-appid="${appid}"]`);
+    const starBtn = anchorEl || (card && card.querySelector('.star-toggle'));
+    const turningOn = !state.favorited.has(appid);
+
+    if (turningOn){
+      state.favorited.add(appid);
+      nudgeWeights(g.tagsMatched, VOTE_STEP * FAVORITE_MULT);
+      state.votesCast++;
+      Sound.star();
+    } else {
+      state.favorited.delete(appid);
+      nudgeWeights(g.tagsMatched, -VOTE_STEP * FAVORITE_MULT);
+      state.votesCast = Math.max(0, state.votesCast - 1);
+      Sound.unstar();
+    }
+
+    if (card) card.classList.toggle('pinned', turningOn);
+    if (starBtn){
+      starBtn.classList.toggle('is-fav', turningOn);
+      starBtn.setAttribute('aria-pressed', String(turningOn));
+      starBtn.title = turningOn ? 'Remove favorite' : 'Favorite — pin this pick';
+      bounce(starBtn, 'pop');
+      if (turningOn) starBurst(starBtn);
+    }
+
+    renderProfile(); updateVotesPill();
+
+    // Favoriting is a stronger signal than a plain like, so it also
+    // sharpens the rest of the batch — but never touches other
+    // favorited/pinned cards.
+    if (turningOn) await refreshUnpinned(appid);
+  }
+
+  // Swap out every currently-shown game EXCEPT favorited/pinned ones for
+  // a fresh pick under the current weights. Called after each like or
+  // favorite so the grid actually improves instead of sitting there
+  // unchanged.
+  async function refreshUnpinned(justChangedAppid){
+    const toReplace = state.shown.filter(g => g.appid !== justChangedAppid && !state.favorited.has(g.appid));
+    if (!toReplace.length) return;
+
+    const shownIds = new Set(state.shown.map(x => x.appid));
+    const replacements = pickRecommendations(toReplace.length, shownIds);
+    if (!replacements.length) return; // pool exhausted — leave the rest as-is rather than blanking cards
+
+    const pairs = toReplace.slice(0, replacements.length).map((old, i) => [old, replacements[i]]);
+
+    pairs.forEach(([old]) => {
+      const card = grid.querySelector(`[data-appid="${old.appid}"]`);
+      if (card) card.classList.add('leaving');
+    });
+
+    setTimeout(async () => {
+      const enriched = await enrichWithDetails(pairs.map(([, repl]) => repl));
+      pairs.forEach(([old], i) => {
+        const fresh = enriched[i];
+        state.shown = state.shown.map(x => x.appid === old.appid ? fresh : x);
+        const card = grid.querySelector(`[data-appid="${old.appid}"]`);
+        if (card) card.outerHTML = cardTemplate(fresh);
+      });
+    }, 200);
   }
 
   async function downvote(appid, anchorEl){
     const g = findShown(appid);
     if (!g) return;
     nudgeWeights(g.tagsMatched, -VOTE_STEP);
+    if (state.favorited.has(appid)){
+      nudgeWeights(g.tagsMatched, -VOTE_STEP * FAVORITE_MULT); // undo the favorite boost too
+      state.favorited.delete(appid);
+    }
     state.blacklist.add(appid);
     state.liked.delete(appid);
     state.votesCast++;
@@ -1338,6 +1547,7 @@
       weights: state.weights,
       blacklist: Array.from(state.blacklist),
       liked: Array.from(state.liked),
+      favorited: Array.from(state.favorited),
       votesCast: state.votesCast,
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -1358,6 +1568,7 @@
         state.weights = data.weights || {};
         state.blacklist = new Set(data.blacklist || []);
         state.liked = new Set(data.liked || []);
+        state.favorited = new Set(data.favorited || []);
         state.votesCast = data.votesCast || 0;
         renderProfile(); updateVotesPill();
         setStatus('Taste profile imported.');
